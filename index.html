@@ -184,17 +184,20 @@
         setInterval(updateClocks, 1000);
         updateClocks();
 
-        // Fitur 4: Fetch API Binance untuk Top Coin
+ // Fitur 4: Fetch API Binance untuk Top Coin
         let marketData = [];
+        
+        // FUNGSI INI YANG BARU (Menggunakan Proxy)
         async function fetchBinanceData() {
             try {
-                const response = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+                const timestamp = new Date().getTime();
+                const targetUrl = encodeURIComponent(`https://api.binance.com/api/v3/ticker/24hr?time=${timestamp}`);
+                
+                const response = await fetch(`https://api.allorigins.win/raw?url=${targetUrl}`);
                 const data = await response.json();
                 
-                // Filter koin USDT agar list lebih rapi
                 marketData = data.filter(d => d.symbol.endsWith('USDT'));
                 
-                // Load tab yang sedang aktif, jika pertama kali load tab 'Hot'
                 const activeTab = document.querySelector('.tab.active').innerText.toLowerCase();
                 let type = 'hot';
                 if(activeTab === 'tertinggi') type = 'gainers';
@@ -203,10 +206,12 @@
                 
                 loadMarketData(type, null, true);
             } catch (error) {
-                document.getElementById('coin-list').innerHTML = '<div style="color:#f23645; text-align:center;">Gagal memuat data.</div>';
+                console.error("Error fetching data:", error);
+                document.getElementById('coin-list').innerHTML = '<div style="color:#f23645; text-align:center; margin-top:20px;">Gagal memuat data dari server.</div>';
             }
         }
 
+        // FUNGSI INI TETAP SAMA (Jangan dihapus)
         function loadMarketData(type, element = null, isRefresh = false) {
             if (element) {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -220,7 +225,6 @@
 
             let sortedData = [];
             if (type === 'hot') {
-                // Hot dikalkulasi berdasarkan volume tertinggi (standar umum)
                 sortedData = [...marketData].sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume)).slice(0, 20);
             } else if (type === 'gainers') {
                 sortedData = [...marketData].sort((a, b) => parseFloat(b.priceChangePercent) - parseFloat(a.priceChangePercent)).slice(0, 20);
@@ -234,10 +238,7 @@
             listContainer.innerHTML = '';
 
             sortedData.forEach(coin => {
-                // Buang akhiran USDT agar lebih rapi (cth: BTCUSDT jadi BTC)
                 const symbol = coin.symbol.replace('USDT', '');
-                
-                // Hilangkan nol tidak penting di belakang koma untuk harga
                 const priceStr = parseFloat(coin.lastPrice) < 1 ? parseFloat(coin.lastPrice).toFixed(6) : parseFloat(coin.lastPrice).toFixed(2);
                 
                 const change = parseFloat(coin.priceChangePercent).toFixed(2);
