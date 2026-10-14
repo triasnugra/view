@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asgra Crypto Dashboard</title>
+    <style>
+        /* CSS Reset & Tema Gelap ala TradingView/Binance */
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
+            background-color: #131722; 
+            color: #d1d4dc; 
+            overflow: hidden; /* Mencegah scroll di desktop */
+        }
+        
+        /* Header & Jam */
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            padding: 10px 20px; 
+            background-color: #1e222d; 
+            border-bottom: 1px solid #2a2e39; 
+            height: 60px;
+        }
+        .header h2 { margin: 0; font-size: 1.2rem; color: #fff; }
+        .time-container { display: flex; gap: 15px; font-weight: 600; font-size: 0.9rem; }
+        .time-box { background: #2a2e39; padding: 6px 12px; border-radius: 6px; color: #e0e3eb; }
+
+        /* Layout Utama */
+        .container { 
+            display: grid; 
+            grid-template-columns: 3fr 1fr; /* 75% Grafik, 25% Sidebar */
+            height: calc(100vh - 60px); 
+        }
+        .chart-section { width: 100%; height: 100%; }
+        
+        /* Sidebar (List Coin & Kalender) */
+        .sidebar { 
+            display: flex; 
+            flex-direction: column; 
+            background-color: #1e222d; 
+            border-left: 1px solid #2a2e39; 
+            overflow-y: auto; 
+        }
+
+        /* Tabs List Binance */
+        .tabs { display: flex; border-bottom: 1px solid #2a2e39; background: #131722; }
+        .tab { 
+            flex: 1; 
+            padding: 12px 5px; 
+            text-align: center; 
+            cursor: pointer; 
+            font-size: 11px; 
+            font-weight: bold; 
+            color: #787b86;
+            transition: 0.2s;
+        }
+        .tab:hover { color: #d1d4dc; }
+        .tab.active { border-bottom: 2px solid #2962ff; color: #2962ff; }
+        
+        /* List Koin */
+        .coin-list-container { flex: 1; overflow-y: auto; padding: 10px; }
+        .coin-item { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 8px 5px; 
+            border-bottom: 1px solid #2a2e39; 
+            font-size: 12px; 
+        }
+        .coin-item:hover { background-color: #2a2e39; border-radius: 4px; }
+        .coin-symbol { font-weight: bold; color: #fff; }
+        .green { color: #089981; }
+        .red { color: #f23645; }
+
+        /* Kalender Ekonomi (CPI & FOMC) */
+        .calendar-section { 
+            height: 350px; 
+            border-top: 1px solid #2a2e39; 
+            background: #131722;
+        }
+
+        /* Responsif untuk dibuka di HP */
+        @media (max-width: 768px) {
+            body { overflow: auto; }
+            .container { grid-template-columns: 1fr; height: auto; }
+            .chart-section { height: 60vh; }
+            .sidebar { height: auto; border-left: none; }
+            .calendar-section { height: 400px; }
+            .header { flex-direction: column; height: auto; gap: 10px; padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header (Judul & Jam) -->
+    <div class="header">
+        <h2>Crypto Terminal</h2>
+        <div class="time-container">
+            <div class="time-box" id="utc-time">UTC: --:--:--</div>
+            <div class="time-box" id="wib-time">WIB: --:--:--</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 1, 2, 3: Full Grafik & Semua Indikator (TradingView Advanced) -->
+        <div class="chart-section" id="tv_chart_container"></div>
+
+        <div class="sidebar">
+            <!-- 4: Tab Data Koin ala Binance -->
+            <div class="tabs">
+                <div class="tab active" id="tab-hot" onclick="loadMarketData('hot', this)">Hot</div>
+                <div class="tab" onclick="loadMarketData('gainers', this)">Tertinggi</div>
+                <div class="tab" onclick="loadMarketData('losers', this)">Terendah</div>
+                <div class="tab" onclick="loadMarketData('volume', this)">Vol 24j</div>
+            </div>
+            
+            <div class="coin-list-container" id="coin-list">
+                <div style="text-align:center; margin-top:20px; color:#787b86;">Memuat data Binance...</div>
+            </div>
+
+            <!-- 6: Jadwal Rilis CPI & FOMC -->
+            <div class="calendar-section">
+                <div class="tradingview-widget-container">
+                    <div class="tradingview-widget-container__widget"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
+                    {
+                        "colorTheme": "dark",
+                        "isTransparent": true,
+                        "width": "100%",
+                        "height": "100%",
+                        "locale": "id",
+                        "importanceFilter": "0,1", 
+                        "countryFilter": "us" 
+                    }
+                    </script>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Widget Chart TradingView -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript">
+        new TradingView.widget({
+            "autosize": true,
+            "symbol": "BINANCE:BTCUSDT",
+            "interval": "D",
+            "timezone": "Asia/Jakarta",
+            "theme": "dark",
+            "style": "1",
+            "locale": "id",
+            "enable_publishing": false,
+            "backgroundColor": "#131722",
+            "gridColor": "#1f2933",
+            "hide_top_toolbar": false,
+            "hide_legend": false,
+            "save_image": false,
+            "container_id": "tv_chart_container",
+            "toolbar_bg": "#1e222d",
+            "withdateranges": true,
+            "allow_symbol_change": true, // Memungkinkan mencari semua koin
+            "details": true,
+            "hotlist": false,
+            "calendar": false
+        });
+    </script>
+
+    <script>
+        // Fitur 5: Waktu UTC & WIB Real-time
+        function updateClocks() {
+            const now = new Date();
+            
+            // Format UTC
+            const utcOptions = { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            document.getElementById('utc-time').innerText = 'UTC: ' + now.toLocaleString('id-ID', utcOptions);
+            
+            // Format WIB
+            const wibOptions = { timeZone: 'Asia/Jakarta', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            document.getElementById('wib-time').innerText = 'WIB: ' + now.toLocaleString('id-ID', wibOptions);
+        }
+        setInterval(updateClocks, 1000);
+        updateClocks();
+
+        // Fitur 4: Fetch API Binance untuk Top Coin
+        let marketData = [];
+        async function fetchBinanceData() {
+            try {
+                const response = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+                const data = await response.json();
+                
+                // Filter koin USDT agar list lebih rapi
+                marketData = data.filter(d => d.symbol.endsWith('USDT'));
+                
+                // Load tab yang sedang aktif, jika pertama kali load tab 'Hot'
+                const activeTab = document.querySelector('.tab.active').innerText.toLowerCase();
+                let type = 'hot';
+                if(activeTab === 'tertinggi') type = 'gainers';
+                if(activeTab === 'terendah') type = 'losers';
+                if(activeTab === 'vol 24j') type = 'volume';
+                
+                loadMarketData(type, null, true);
+            } catch (error) {
+                document.getElementById('coin-list').innerHTML = '<div style="color:#f23645; text-align:center;">Gagal memuat data.</div>';
+            }
+        }
+
+        function loadMarketData(type, element = null, isRefresh = false) {
+            if (element) {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                element.classList.add('active');
+            } else if (!isRefresh) {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.getElementById('tab-hot').classList.add('active');
+            }
+
+            if (marketData.length === 0) return;
+
+            let sortedData = [];
+            if (type === 'hot') {
+                // Hot dikalkulasi berdasarkan volume tertinggi (standar umum)
+                sortedData = [...marketData].sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume)).slice(0, 20);
+            } else if (type === 'gainers') {
+                sortedData = [...marketData].sort((a, b) => parseFloat(b.priceChangePercent) - parseFloat(a.priceChangePercent)).slice(0, 20);
+            } else if (type === 'losers') {
+                sortedData = [...marketData].sort((a, b) => parseFloat(a.priceChangePercent) - parseFloat(b.priceChangePercent)).slice(0, 20);
+            } else if (type === 'volume') {
+                sortedData = [...marketData].sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume)).slice(0, 20);
+            }
+
+            const listContainer = document.getElementById('coin-list');
+            listContainer.innerHTML = '';
+
+            sortedData.forEach(coin => {
+                // Buang akhiran USDT agar lebih rapi (cth: BTCUSDT jadi BTC)
+                const symbol = coin.symbol.replace('USDT', '');
+                
+                // Hilangkan nol tidak penting di belakang koma untuk harga
+                const priceStr = parseFloat(coin.lastPrice) < 1 ? parseFloat(coin.lastPrice).toFixed(6) : parseFloat(coin.lastPrice).toFixed(2);
+                
+                const change = parseFloat(coin.priceChangePercent).toFixed(2);
+                const changeClass = change >= 0 ? 'green' : 'red';
+                const changeSign = change >= 0 ? '+' : '';
+
+                listContainer.innerHTML += `
+                    <div class="coin-item">
+                        <span class="coin-symbol">${symbol}</span>
+                        <span>$${priceStr}</span>
+                        <span class="${changeClass}">${changeSign}${change}%</span>
+                    </div>
+                `;
+            });
+        }
+
+        fetchBinanceData();
+        // Refresh data Binance setiap 15 detik secara otomatis
+        setInterval(fetchBinanceData, 15000);
+    </script>
+</body>
+</html>
